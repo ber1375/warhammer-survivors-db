@@ -287,12 +287,15 @@ p + p { margin-top: .55rem; }
 .brand-mark { color: var(--terminal); display: grid; place-items: center; font-size: 24px; width: 35px; height: 35px; border: 1px solid var(--bevel); background: #18271e; box-shadow: inset 0 0 0 2px #101511; }
 nav { display: flex; gap: 1.5rem; align-self: stretch; }
 nav a { display: flex; align-items: center; color: var(--muted); border-bottom: 2px solid transparent; padding: .2rem .25rem 0; font-weight: 650; white-space: nowrap; }
-.locale-picker { position: relative; min-inline-size: 0; font-size: .85rem; }
+.locale-picker { position: relative; inline-size: 9rem; flex: none; font-size: .85rem; }
 .locale-picker summary { display: flex; align-items: center; gap: .6rem; list-style: none; cursor: pointer; }
 .locale-picker summary::-webkit-details-marker { display: none; }
 .locale-picker summary::after { content: ""; width: .42rem; height: .42rem; border: solid var(--muted); border-width: 0 1px 1px 0; transform: rotate(45deg); margin-block-end: .2rem; }
 .locale-picker[open] summary::after { transform: rotate(225deg); margin-block: .2rem 0; }
 #locale-current, #locale-options button { display: flex; align-items: center; gap: .45rem; white-space: nowrap; }
+#locale-current { flex: 1; min-inline-size: 0; }
+#locale-current > span:last-child { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.locale-picker summary::after { flex: none; }
 #locale-options { position: absolute; inset: calc(100% + .65rem) 0 auto auto; z-index: 5; min-width: max-content; max-height: min(70vh, 27rem); overflow: auto; padding: .25rem; background: var(--surface); border: 1px solid var(--bevel); box-shadow: 0 8px 24px #0009; }
 :where(#locale-options) button { width: 100%; text-align: start; border-color: transparent; background: transparent; padding: .35rem .55rem; }
 .locale-flag { display: inline-block; flex: none; width: 1.35em; height: .95em; border-radius: 1px; outline: 1px solid #ffffff30; }
@@ -624,7 +627,7 @@ dialog::backdrop { background: #09090bd9; }
   .entries { max-height: none; }
   .world-switch button { min-height: 30px; padding-inline: .3rem; }
   .world-switch img { width: 17px; height: 16px; }
-  .locale-picker { font-size: .75rem; }
+  .locale-picker { inline-size: clamp(4rem, 21vw, 6.5rem); font-size: .75rem; }
   .brand { grid-area: 1 / 1; gap: .35rem; font-size: 10px; }
   .brand strong { font-size: 13px; }
   .brand-mark { width: 28px; height: 28px; font-size: 18px; }
@@ -633,9 +636,6 @@ dialog::backdrop { background: #09090bd9; }
   .masthead nav { gap: .2rem; }
   .masthead nav a { padding-inline: .25rem; }
   .masthead nav a:not([data-nav=review]) { flex: none; white-space: nowrap; }
-}
-@media (max-width: 390px) {
-  #locale-current > span:last-child { max-width: 16vw; overflow: hidden; text-overflow: ellipsis; }
 }
 .codex-search { grid-column: 1 / -1; }
 .codex-search .filters { padding: .7rem; }
@@ -1632,11 +1632,18 @@ function calculatorWeaponDisplay(key, value) {
 
 function renderModeOptions(stage) {
   const available = calculatorStageModes(stage);
-  if (!available.length) return '';
   const checked = state.plan.modes ?? [];
-  return `<fieldset class="calculator-modes"><legend>Режимы карты</legend>
-    ${available.map(id => `<label><input type="checkbox" data-calc-mode="${id}"${checked.includes(id) ? ' checked' : ''}>
-      ${recordIconLabel(calculatorModeRecord(id), calculatorModeName(id))}</label>`).join('')}
+  const labels = (ids, sizing = false) => ids.map(id => `<label><input type="checkbox"
+    ${sizing ? 'disabled' : `data-calc-mode="${id}"${checked.includes(id) ? ' checked' : ''}`}>
+    ${recordIconLabel(calculatorModeRecord(id), calculatorModeName(id))}</label>`).join('');
+  return `<fieldset class="calculator-modes planner-map-modes"><legend>Режимы карты</legend>
+    <div class="planner-mode-area">
+      <div class="planner-mode-list planner-mode-sizer" inert aria-hidden="true">${labels(Object.keys(calculatorModeNames), true)}</div>
+      ${available.length ? `<div class="planner-mode-list">${labels(available)}</div>`
+        : `<div class="planner-mode-no-signal" aria-label="${esc(translateUi('Выбрать карту'))}">
+          <span aria-hidden="true"></span>
+        </div>`}
+    </div>
     ${checked.some(id => ['endless', 'purity', 'limitless'].includes(id)) ?
     '<small>Численный расчёт этих режимов зависит от событий или выбора бонусов в забеге.</small>' : ''}
     </fieldset>`;
@@ -4283,6 +4290,19 @@ const plannerStyles = `
 .calculator-modes label { display:inline-flex; align-items:center; gap:.25rem; font-size:.83rem; }
 .calculator-modes input { width:auto; min-height:0; }
 .calculator-modes > small { flex-basis:100%; }
+.planner-map-modes { flex:0 0 100%; }
+.planner-mode-area { display:grid; width:100%; }
+.planner-mode-area > * { grid-area:1 / 1; }
+.planner-mode-list { display:flex; flex-wrap:wrap; align-content:start; gap:.4rem 1rem; }
+.planner-mode-sizer { visibility:hidden; pointer-events:none; }
+.planner-mode-no-signal { display:grid; align-items:center; padding:.2rem .4rem; border:1px dashed var(--divider); color:var(--terminal); }
+.planner-mode-no-signal span {
+  height:11px; width:min(100%, 17rem); opacity:.7;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 2px, var(--surface) 2px 3px),
+    repeating-linear-gradient(90deg, currentColor 0 3px, transparent 3px 7px, currentColor 7px 13px, transparent 13px 17px);
+  mask-image:linear-gradient(90deg, #000 45%, transparent 100%);
+}
 .calculator-modes.planner-grid-options { margin:0 0 14px; }
 .planner-deck { position:relative; z-index:2; }
 .planner-loadout { display:grid; grid-template-columns:minmax(9.7rem,15rem) minmax(0,1.3fr) minmax(14rem,.8fr); gap:clamp(10px,1.8vw,26px); align-items:start; }
