@@ -300,11 +300,19 @@ nav a { display: flex; align-items: center; color: var(--muted); border-bottom: 
 .world-switch button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 32px; padding: .15rem .42rem; color: var(--muted); background: transparent; border-color: transparent; font-size: .75rem; }
 .world-switch img { width: 22px; height: 19px; object-fit: contain; image-rendering: pixelated; }
 main { max-width: 1600px; margin: auto; padding: var(--workspace-top) 2rem 2rem; }
+.tool-summary { margin-top: 1.25rem; padding: .65rem .85rem; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: .875rem; }
+.tool-summary p { max-width: 75ch; margin: 0; line-height: 1.5; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .build { display: grid; gap: .15rem; flex-shrink: 0; color: var(--text); background: var(--surface); border: 1px solid var(--line); padding: .3rem .55rem; font-size: .75rem; }
 .build-heading, .build-heading a { display: flex; align-items: center; gap: .3rem; }
 .build-heading a { text-decoration: underline; }
 .build-heading svg { flex: none; }
+.build-version { display: flex; align-items: center; gap: .4rem; }
+.build-current:not([hidden]) {
+  display: inline-grid; place-items: center; flex: none;
+  width: 1rem; height: 1rem; border: 1px solid #78dba0; border-radius: 50%;
+  color: #9aefb7; background: #173526; font: 700 .72rem/1 var(--body);
+}
 .build-info { display: flex; align-items: center; gap: .45rem; min-width: 0; }
 .build-warning:not([hidden]) { display: flex; align-items: start; gap: .5rem; max-width: 39ch; min-width: 0; overflow-wrap: anywhere; padding: .4rem .55rem; border: 1px solid #c99335; border-radius: 3px; background: #231a0b; color: #ffe5a6; text-align: start; font-size: .75rem; line-height: 1.3; }
 .build-warning strong { margin-inline-end: .35em; color: #ffcb5c; }
@@ -1019,7 +1027,9 @@ dialog[open] {
               <path d="M41.0645 0C63.7437 0 82.1289 8.45818 82.1289 18.8906C82.1286 23.2692 78.8889 27.2985 73.4531 30.502C78.8892 33.705 82.1287 37.7346 82.1289 42.1133C82.1289 46.4413 78.9631 50.427 73.6406 53.6123C78.963 56.7973 82.1288 60.7825 82.1289 65.1104C82.1284 75.5426 63.7434 83.999 41.0645 83.999C18.3855 83.999 0.000555205 75.5426 0 65.1104C0.000124576 60.7827 3.1654 56.7972 8.4873 53.6123C3.16524 50.4271 1.02266e-05 46.4411 0 42.1133C0.000201977 37.7347 3.23999 33.706 8.67578 30.5029C3.23974 27.2995 0.000259609 23.2694 0 18.8906C0 8.45819 18.3852 8.53624e-06 41.0645 0ZM68.167 56.3027C60.9354 59.2275 51.4506 61.0029 41.0645 61.0029C30.6784 61.0029 21.1935 59.2275 13.9619 56.3027V63.4668L13.9707 63.7422C14.3417 69.5114 26.3302 74.1435 41.0645 74.1436C55.7988 74.1435 67.7873 69.5114 68.1582 63.7422L68.167 63.4668V56.3027ZM68.167 33.0801C60.9354 36.0048 51.4505 37.7803 41.0645 37.7803C30.6784 37.7803 21.1935 36.0048 13.9619 33.0801V40.4717C13.9624 46.3681 26.0966 51.1483 41.0645 51.1484C55.7981 51.1484 67.7861 46.5169 68.1582 40.748L68.167 40.4717V33.0801ZM41.0645 8.21387C26.0962 8.21389 13.9619 12.6263 13.9619 18.0693C13.9628 23.5121 26.0967 27.9248 41.0645 27.9248C56.0322 27.9248 68.1661 23.5121 68.167 18.0693C68.167 12.6263 56.0328 8.21387 41.0645 8.21387Z"/>
             </svg>
             SteamDB</a></span>
-          <span id="build"></span>
+          <span class="build-version"><span id="build"></span>
+            <span class="build-current" id="build-current" role="img" hidden>✓</span>
+          </span>
         </div>
         <div class="build-warning" id="build-warning" hidden>
           <span class="build-warning-icon" aria-hidden="true">&#x26A0;&#xFE0F;</span>
@@ -1036,6 +1046,9 @@ dialog[open] {
     <h1 class="visually-hidden" id="page-title"></h1>
     <div id="notice" role="status" aria-live="polite"></div>
     <div id="screen" tabindex="-1"></div>
+    <footer class="tool-summary">
+      <p id="tool-summary" lang="en">Plan your Warhammer Survivors build and check weapon evolutions before a run. Browse the Codex for characters, weapons, passive items, stages, and unlock requirements.</p>
+    </footer>
   </main>
   <aside class="community-links" aria-label="Reddit и GitHub">
     <a class="community-reddit" href="https://www.reddit.com/r/WarhammerSurvivors/comments/1xua44p/i_made_a_build_planner_for_warhammer_survivors/" target="_blank" rel="noopener noreferrer" title="Поделитесь идеями и предложениями">
@@ -1142,6 +1155,8 @@ function initializeLocalization() {
   const summary = picker.querySelector('summary');
   const current = document.querySelector('#locale-current');
   const menu = document.querySelector('#locale-options');
+  const toolSummary = document.querySelector('#tool-summary');
+  const toolSummaryEnglish = toolSummary.textContent;
   const choices = new Map();
   for (const locale of DATA.locales) {
     const option = document.createElement('button');
@@ -1155,6 +1170,10 @@ function initializeLocalization() {
   const applyLocale = locale => {
     currentLocale = DATA.locales.includes(locale) ? locale : 'en';
     document.documentElement.lang = currentLocale;
+    toolSummary.lang = currentLocale === 'ru' ? 'ru' : 'en';
+    toolSummary.textContent = currentLocale === 'ru'
+      ? 'Соберите билд для Warhammer Survivors и проверьте эволюции оружия перед забегом. В Кодексе собраны персонажи, оружие, пассивные предметы, карты и условия открытия.'
+      : toolSummaryEnglish;
     current.innerHTML = choices.get(currentLocale).innerHTML;
     for (const [code, option] of choices) option.setAttribute('aria-pressed', String(code === currentLocale));
     for (const record of DATA.records) Object.assign(record, record.translations[currentLocale]);
@@ -1205,6 +1224,7 @@ function initializeLocalization() {
       applyLocale(locale);
       try { localStorage.setItem('warhammer-survivors.locale', currentLocale); } catch {}
       picker.open = false;
+      renderBuildInfo();
       render();
       translateTree(document.body);
       summary.focus();
@@ -3666,7 +3686,7 @@ function plannerIconGrid(records, heading, kind, context) {
         const disabled = plannerEditingCatalog ? !starter && context.catalogDisabled.has(record.key) : context.disabled.has(record.key);
         const capacity = !selectable && !plannerEditingCatalog ? plannerCapacityReason(record, context) : '';
         const onMap = context.map.markers.has(record.key);
-        const mapAvailable = onMap && !context.excluded.has(record.key) && !disabled && !picked;
+        const evolutionHint = context.evolutionHints.get(record.key);
         const binding = plannerEditingCatalog ? 'catalog' : kind === 'characters' ? 'portrait' : kind === 'stages' ? 'stage' : 'toggle';
         const warnings = plannerWarnings(record);
         const recipe = plannerDisplayedRecipe(record, context);
@@ -3675,7 +3695,7 @@ function plannerIconGrid(records, heading, kind, context) {
         const stageArt = stageTile ? atmosphereStages[record.key] : undefined;
         const stageLoot = stageTile ? plannerMapCardLoot(context.mapForStage(record)) : [];
         const details = [
-          record.name, ...warnings, disabled ? 'Отключено в каталоге' : mapAvailable ? 'Есть на карте' : '',
+          record.name, ...warnings, disabled ? 'Отключено в каталоге' : '', onMap ? 'Есть на карте' : '',
           starter ? 'Стартовое оружие' : '',
           !selectable ? equipmentWeightLabel(record) : '',
           capacity,
@@ -3684,7 +3704,7 @@ function plannerIconGrid(records, heading, kind, context) {
           heroWeapon ? `Стартовое оружие: ${heroWeapon.name}` : '',
           stageLoot.length ? `${translateUi('Возможная добыча')}: ${stageLoot.map(item => item.name).join(', ')}` : '',
         ].filter(Boolean);
-        return `<div class="planner-card" data-plan-related="${esc(record.key)}"${context.activeEvolution.has(record.key) ? ' data-evolution-component' : ''}${mapAvailable && !plannerEditingCatalog ? ' data-grid-map' : ''}${disabled ? ' data-grid-disabled' : ''}>
+        return `<div class="planner-card" data-plan-related="${esc(record.key)}"${!plannerEditingCatalog && evolutionHint ? ` data-evolution-hint="${evolutionHint}"` : ''}${disabled ? ' data-grid-disabled' : ''}>
         <button type="button" class="planner-tile${selectable ? ' planner-tile-choice' : ''}${stageTile ? ' planner-stage-tile' : ''}"
           data-plan-${binding}="${esc(record.key)}"
           aria-pressed="${plannerEditingCatalog ? !disabled : picked}"${capacity ? ' aria-disabled="true"' : ''} title="${esc(details.join(' — '))}" aria-label="${esc(plannerEditingCatalog && !starter ? `${disabled ? 'Включить' : 'Отключить'}: ${record.name}` : details.join(' — '))}"${starter || !plannerEditingCatalog && disabled ? ' disabled' : ''}>
@@ -3696,7 +3716,7 @@ function plannerIconGrid(records, heading, kind, context) {
           ${heroWeapon && !plannerEditingCatalog ? `<span class="planner-hero-weapon" title="${esc(`Стартовое оружие: ${heroWeapon.name}`)}">
             ${sprite(heroWeapon, 'planner-recipe-sprite')}</span>` : ''}
           ${!plannerEditingCatalog && picked ? '<span class="planner-tile-mark" aria-hidden="true">✓</span>' : ''}
-          ${!plannerEditingCatalog && mapAvailable ? '<span class="planner-map-tag" aria-hidden="true">Карта</span>' : ''}
+          ${!plannerEditingCatalog && onMap ? '<span class="planner-map-tag" aria-hidden="true">Карта</span>' : ''}
           ${!plannerEditingCatalog && (!selectable || count) ? plannerSynergyIndicator(count, scale, hero) : ''}
           ${!selectable && !plannerEditingCatalog ? `
             ${plannerRecipeIcons(record, context)}` : ''}
@@ -3784,29 +3804,43 @@ function plannerContext() {
   const items = plannerItemRows(starting, new Set([...disabled, ...blockedEvolutions]));
   const selected = new Set(items.map(item => item.record.key));
   const excluded = new Set(state.plan.mapExcluded[stage?.key] ?? []);
+  const availableMap = new Set([...map.markers.keys()].filter(key => !selected.has(key) && !excluded.has(key) && !disabled.has(key)));
   const mapProjection = [];
-  for (const key of map.markers.keys()) {
+  for (const key of availableMap) {
     const record = byKey.get(key);
-    if (!selected.has(key) && !excluded.has(key) && !disabled.has(key)
-        && !plannerCapacityReason(record, { selected, items: [...items, ...mapProjection], map, excluded })) {
+    if (!plannerCapacityReason(record, { selected, items: [...items, ...mapProjection], map, excluded })) {
       mapProjection.push({ record, level: plannerMax(record), starting: false });
     }
   }
   const synergyItems = [...items, ...mapProjection];
   const possessed = new Set(synergyItems.map(item => item.record.key));
-  const activeEvolution = new Set();
+  const evolutionHints = new Map();
+  const markEvolution = (key, hint) => {
+    if (evolutionHints.get(key) !== 'selected') evolutionHints.set(key, hint);
+  };
   for (const { target, components } of recipes) {
-    if (possessed.has(target.key) || components.some(part => part.base && possessed.has(part.record?.key))) {
-      activeEvolution.add(target.key);
-      for (const part of components) if (part.record) activeEvolution.add(part.record.key);
+    if (disabled.has(target.key) || !components.length) continue;
+    const keys = components.map(part => part.record?.key);
+    const hasSelected = keys.some(key => selected.has(key));
+    const hasMap = keys.some(key => availableMap.has(key));
+    if (selected.has(target.key) || keys.every(key => selected.has(key))) {
+      markEvolution(target.key, 'selected');
+    } else if (hasMap && keys.every(key => selected.has(key) || availableMap.has(key))) {
+      markEvolution(target.key, 'map');
     }
-    const passives = components.filter(part => part.record?.kind === 'passives');
-    if (passives.length && passives.every(part => selected.has(part.record.key))) {
-      for (const part of components) if (part.base && part.record?.kind === 'weapons') activeEvolution.add(part.record.key);
+    for (const key of keys) {
+      if (!key || selected.has(key)) continue;
+      if (availableMap.has(key)) {
+        if (hasSelected || selected.has(target.key) || keys.some(other => other !== key && availableMap.has(other))) {
+          markEvolution(key, 'map');
+        }
+      } else if (hasSelected || selected.has(target.key)) {
+        markEvolution(key, 'selected');
+      }
     }
   }
   return {
-    character, stage, starting, items, selected, synergyItems, mapProjection, possessed, weapons, recipes, activeEvolution, map, mapForStage, excluded, disabled, catalogDisabled, blockedEvolutions,
+    character, stage, starting, items, selected, synergyItems, mapProjection, possessed, weapons, recipes, evolutionHints, map, mapForStage, excluded, disabled, catalogDisabled, blockedEvolutions,
     recipeByKey: new Map(recipes.map(recipe => [recipe.target.key, recipe])),
     calculated: calculatorStats({ character, stage, items }),
     passiveEffects: new Map(),
@@ -4205,7 +4239,7 @@ const plannerStyles = `
 .planner-legend { display:flex; flex-wrap:wrap; gap:.3rem; margin-bottom:.8rem; font-size:.72rem; }
 .planner-legend span { border:1px solid currentColor; padding:.08rem .32rem; }
 .legend-selected { color:var(--accent); background:var(--accent-soft); }
-.legend-map,.planner-map-tag { color:#ffdc88; background:#3d2c0e; }
+.legend-map,.planner-map-tag { color:var(--planner-map-color); background:#3d2c0e; }
 .legend-evolution { color:#e0b7ff; background:#3c264d; }
 .legend-synergy { color:#8aebcf; background:#20443a; }
 .planner-library-group + .planner-library-group { border-top:1px solid var(--divider); margin-top:16px; padding-top:16px; }
@@ -4221,6 +4255,7 @@ const plannerStyles = `
 .planner-tile-choice { grid-template-rows:43px 2.4em; }
 .planner-tile[aria-pressed="true"] { border-color:var(--gold); background:var(--accent-soft); }
 .planner-map-tag { position:absolute; top:44px; left:3px; font-size:.55rem; font-weight:700; padding:1px 3px; border:1px solid #d1ab59; }
+.planner-tile-mark + .planner-map-tag { left:16px; }
 .planner-card[data-grid-disabled] .planner-tile { background:var(--bg); border-color:#a5514a; }
 .planner-card[data-grid-disabled] .planner-tile-sprite { opacity:.32; }
 .planner-card[data-grid-disabled] .planner-tile::after { content:""; position:absolute; top:34px; width:34px; height:2px; background:#ff7971; transform:rotate(42deg); pointer-events:none; }
@@ -4266,11 +4301,16 @@ const plannerStyles = `
 .planner-recipe-part .planner-recipe-sprite,.planner-recipe-more { width:17px; height:17px; }
 .planner-recipe-more { display:grid; place-items:center; color:var(--gold); font-size:.65rem; }
 .planner-recipe-part > span:last-child:not(.record-sprite) { position:absolute; right:-2px; bottom:-3px; color:var(--gold); font-size:8px; text-shadow:0 0 2px #000; }
-.planner-card[data-evolution-component] .planner-tile { border-bottom-color:#bd88ea; }
+.planner-card[data-evolution-hint=selected] { --evolution-hint-color:#bd88ea; }
+.planner-card[data-evolution-hint=map] { --evolution-hint-color:var(--planner-map-color); }
+.planner-card[data-evolution-hint] .planner-tile::before {
+  content:""; position:absolute; inset:auto 2px 0; height:2px;
+  background:var(--evolution-hint-color); pointer-events:none;
+}
 .planner-slot[data-highlight-evolution],.planner-card[data-highlight-evolution] .planner-tile { border-color:#dfadff; background:#3c264d; }
 .planner-slot[data-highlight-passive],.planner-card[data-highlight-passive] .planner-tile { border-color:#86d2b3; background:#20443a; }
 .planner-slot[data-highlight-starting],.planner-card[data-highlight-starting] .planner-tile { border-color:#dfadff; background:#3c264d; }
-.planner-library { isolation:isolate; }
+.planner-library { isolation:isolate; --planner-map-color:#ffdc88; }
 .planner-library[data-hide-combinations] :is(.planner-recipe-icons,.planner-hero-weapon),
 .planner-library[data-hide-synergies] .planner-synergy,
 .planner-library[data-hide-names] .planner-tile-label,
@@ -5935,6 +5975,11 @@ function renderBuildInfo() {
   const warning = document.querySelector('#build-warning');
   const installed = DATA.installedBuildId;
   const outdated = installed && Number(installed) > Number(DATA.buildId);
+  const current = document.querySelector('#build-current');
+  const currentLabel = currentLocale === 'ru' ? 'Данные соответствуют проверенной сборке Steam' : 'Data matches the checked Steam build';
+  current.hidden = !installed || String(installed) !== String(DATA.buildId);
+  current.title = currentLabel;
+  current.setAttribute('aria-label', currentLabel);
   const message = outdated ? 'Данные устарели.' : reviewQuestions.length
     ? 'Часть игровых механик требует проверки для этой сборки.' : '';
   warning.hidden = !message;
