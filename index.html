@@ -2765,7 +2765,45 @@ try {
   }
 } catch {}
 
+function plannerParameters(hash = location.hash) {
+  return new URLSearchParams(hash.startsWith('#planner?') ? hash.slice('#planner?'.length) : '');
+}
+
+function loadPlannerLink() {
+  const params = plannerParameters();
+  if (!params.size) return;
+  try {
+    const world = params.get('world');
+    if (params.get('v') !== '1' || !['40k', 'aos'].includes(world)) throw new Error();
+    const plans = {};
+    for (const name of ['40k', 'aos']) {
+      const plan = JSON.parse(params.get(name) ?? '{}');
+      if (!plan || typeof plan !== 'object' || Array.isArray(plan)) throw new Error();
+      plans[name] = { ...newPlan(), ...plan };
+    }
+    state = validateProfile({ version: 1, world, sortByImpact: params.get('sort') === '1', plans });
+    plannerCatalogUndo.clear();
+  } catch {
+    notice.textContent = 'Не удалось открыть сборку из ссылки.';
+  }
+}
+
+function syncPlannerUrl() {
+  if (route().page !== 'planner') return;
+  const params = new URLSearchParams({ v: '1', world: state.world });
+  if (state.sortByImpact) params.set('sort', '1');
+  const defaults = newPlan();
+  for (const [world, plan] of Object.entries(state.plans)) {
+    const choices = Object.entries(plan).filter(([field, value]) =>
+      JSON.stringify(value) !== JSON.stringify(defaults[field]));
+    if (choices.length) params.set(world, JSON.stringify(Object.fromEntries(choices)));
+  }
+  const hash = '#planner?' + params.toString();
+  if (location.hash !== hash) history.replaceState(history.state, '', hash);
+}
+
 function save() {
+  syncPlannerUrl();
   try {
     localStorage.setItem(storageKey, JSON.stringify(state));
     notice.textContent = '';
@@ -2802,7 +2840,7 @@ function rerenderOnInput(input, callback) {
 }
 
 function route() {
-  const [page, key] = location.hash.slice(1).split('/');
+  const [page, key] = location.hash.slice(1).split('?')[0].split('/');
   try {
     if (page === 'codex' && key && byKey.has(decodeURIComponent(key))) return { page, key: decodeURIComponent(key) };
   } catch {
@@ -3275,6 +3313,7 @@ function render() {
     else nav.removeAttribute('aria-current');
   }
   if (page === 'planner') {
+    syncPlannerUrl();
     screen.innerHTML = renderPlanner();
     bindPlanner(screen);
     return;
@@ -3403,11 +3442,12 @@ document.querySelector('.skip').addEventListener('click', event => {
   screen.scrollIntoView({ block: 'start' });
 });
 window.addEventListener('hashchange', event => {
+  loadPlannerLink();
   syncLinkedWorld();
   if (route().page === 'review' && recordInfo.open) recordInfo.close();
   render();
   const current = route();
-  const [previousPage, previousKey] = new URL(event.oldURL).hash.slice(1).split('/');
+  const [previousPage, previousKey] = new URL(event.oldURL).hash.slice(1).split('?')[0].split('/');
   if (matchMedia('(max-width: 670px)').matches || previousPage !== current.page) window.scrollTo(0, 0);
   if (previousPage === 'codex' && previousKey && current.page === 'codex' && !current.key && restoreCodexFocus()) return;
   const heading = current.key ? document.querySelector('#record-title') : document.querySelector('#workspace');
@@ -3415,6 +3455,7 @@ window.addEventListener('hashchange', event => {
 });
 initializeLocalization();
 renderBuildInfo();
+loadPlannerLink();
 syncLinkedWorld();
 render();
 
