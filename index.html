@@ -784,10 +784,10 @@ dialog[open] {
   <a class="skip" href="#workspace">К содержанию</a>
   <header class="masthead">
     <div class="masthead-inner">
-      <a class="brand" href="#codex"><span class="brand-mark" aria-hidden="true">✥</span><span>WARHAMMER<strong>SURVIVORS</strong></span></a>
+      <a class="brand" href="#planner"><span class="brand-mark" aria-hidden="true">✥</span><span>WARHAMMER<strong>SURVIVORS</strong></span></a>
       <nav aria-label="Разделы">
-        <a href="#codex" data-nav="codex">Кодекс</a>
         <a href="#planner" data-nav="planner">Планировщик</a>
+        <a href="#codex" data-nav="codex">Кодекс</a>
         <a href="#review" data-nav="review">Требуется проверка</a>
       </nav>
       <div class="world-switch" id="world-switch" role="group" aria-label="Вселенная"></div>
@@ -2520,7 +2520,7 @@ function renderPlanner() {
           <div class="planner-deploy">
             ${plannerPortrait(character, 'characters', 'Выбрать персонажа')}
             <div class="planner-deploy-summary">
-              ${character ? `<p class="planner-character-name" title="${esc(character.name)}">${recordIconLabel(character)}</p>` : ''}
+              ${character ? `<p class="planner-character-name" title="${esc(character.name)}">${esc(character.name)}</p>` : ''}
               ${atmosphereArcanaDeck(arcana, stage)}
             </div>
             ${atmosphereStage(stage)}
@@ -2803,8 +2803,9 @@ const plannerStyles = `
 .planner-deploy { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
 .planner-portrait-wrap,.planner-card { position:relative; min-width:0; }
 .planner-portrait { display:grid; justify-items:center; align-content:start; gap:4px; width:100%; height:85px; padding:5px; font-size:.76rem; line-height:1.25; overflow-wrap:anywhere; background:radial-gradient(ellipse,var(--accent-soft),var(--bg)); }
-.planner-portrait[data-plan-portrait] { align-content:center; }
+.planner-portrait[data-plan-portrait] { display:block; padding:7px; }
 .planner-portrait .planner-portrait-sprite,.planner-portrait-empty { width:100%; height:46px; display:grid; place-items:center; color:var(--gold); font-size:1.4rem; }
+.planner-portrait[data-plan-portrait] .planner-portrait-sprite { height:100%; }
 .planner-loadout-slots { display:grid; gap:5px; min-width:0; }
 .planner-slot-row { display:grid; grid-template-columns:4.75rem minmax(0,1fr); gap:4px; align-items:center; }
 .planner-slot-label { padding:3px; border:0; background:transparent; color:var(--gold); text-align:left; font-weight:650; font-size:.82rem; }
@@ -3016,7 +3017,7 @@ function link(key, label, { includeIcon = true, crossWorld = false } = {}) {
   const record = byKey.get(key);
   if (!record) return esc(label ?? key);
   const content = includeIcon ? recordIconLabel(record, label) : esc(label ?? record.name);
-  return crossWorld || matchesWorld(record) ? `<a class="item-link" href="#codex/${encodeURIComponent(key)}">${content}</a>` : content;
+  return crossWorld || matchesWorld(record) ? `<a class="item-link" href="${codexHref(key)}">${content}</a>` : content;
 }
 
 const newPlan = () => ({ character: '', stage: '', items: {}, markedItems: [], arcana: [], arcanaLevels: {}, arcanaFollowers: 0, arcanaScenario: {}, modes: [], upgrades: {}, disabledUpgrades: [], mapExcluded: {}, catalogDisabled: [] });
@@ -3160,12 +3161,45 @@ const plannerUrlKinds = {
   characters: 'character', stages: 'stage', weapons: 'weapon', passives: 'passive',
   arcana: 'arcana', shopUpgrades: 'upgrade',
 };
+const urlSlug = value => value.normalize('NFKD').toLowerCase().replace(/[\p{M}'’]/gu, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const shortRecordId = record => record.id.replace(/^WS_(?:(?:40K|AOS)_)?/i, '');
+
 function plannerUrlSlug(record) {
   const useTitle = ['arcana', 'weapons', 'passives', 'stages'].includes(record.kind) && record.en && record.en !== record.id;
   const title = record.kind === 'arcana' ? record.en?.replace(/^(?:[IVXLCDM]+|0)\s*[-–—]\s*/i, '') : record.en;
-  const name = useTitle ? title.replace(/^the /i, '') : record.id.replace(/^WS_(?:(?:40K|AOS)_)?/i, '');
-  return name.normalize('NFKD').toLowerCase().replace(/[\p{M}'’]/gu, '')
-    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return urlSlug(useTitle ? title.replace(/^the /i, '') : shortRecordId(record));
+}
+
+const codexPaths = new Map();
+const codexKeys = new Map();
+// Give the shortest address to the current, visible entry when names overlap.
+const codexAddressPriority = record => Number(record.hidden) + 2 * Number(isDay30(record));
+for (const record of [...DATA.records].sort((a, b) => codexAddressPriority(a) - codexAddressPriority(b))) {
+  const id = urlSlug(shortRecordId(record));
+  const title = record.kind === 'secrets' ? id
+    : plannerUrlKinds[record.kind] ? plannerUrlSlug(record) : urlSlug(record.en || record.id);
+  const prefix = `${record.world}/${record.kind}/`;
+  const suffixes = [title || id, id, `${id}--${urlSlug(record.table)}`];
+  const suffix = suffixes.find(value => value && !codexKeys.has(prefix + value));
+  if (!suffix) continue;
+  const path = prefix + suffix;
+  codexPaths.set(record.key, path);
+  codexKeys.set(path, record.key);
+}
+
+function codexHref(key) {
+  return `#codex/${codexPaths.get(key) ?? encodeURIComponent(key)}`;
+}
+
+function codexKeyFromHash(hash) {
+  if (!hash.startsWith('#codex/')) return '';
+  try {
+    const path = decodeURIComponent(hash.slice('#codex/'.length).split('?')[0]);
+    return codexKeys.get(path) ?? (byKey.has(path) ? path : '');
+  } catch {
+    return '';
+  }
 }
 
 const plannerUrlAliases = Object.fromEntries(plannerUrlWorlds.map(world => {
@@ -3356,19 +3390,19 @@ function rerenderOnInput(input, callback) {
   if (caret !== null && caret !== undefined) next?.setSelectionRange(caret, caret);
 }
 
-function route() {
-  const [page, key] = location.hash.slice(1).split('?')[0].split('/');
-  try {
-    if (page === 'codex' && key && byKey.has(decodeURIComponent(key))) return { page, key: decodeURIComponent(key) };
-  } catch {
-    // A malformed URL can still open the catalogue.
-  }
-  return { page: ['planner', 'review'].includes(page) ? page : 'codex', key: '' };
+function route(hash = location.hash) {
+  const page = hash.slice(1).split(/[/?]/, 1)[0];
+  if (page === 'codex') return { page, key: codexKeyFromHash(hash) };
+  return { page: page === 'review' ? page : 'planner', key: '' };
 }
 
 function syncLinkedWorld() {
-  const world = byKey.get(route().key)?.world;
+  const { key } = route();
+  if (!key) return;
+  const world = byKey.get(key)?.world;
   if (world === '40k' || world === 'aos') state.world = world;
+  const hash = codexHref(key);
+  if (hash !== location.hash) history.replaceState(history.state, '', hash);
 }
 
 const recordNumber = localeNumberFormat({ maximumFractionDigits: 4 });
@@ -3899,7 +3933,7 @@ function codexPage(key, available) {
     <section class="panel result-panel"><div class="section-title"><h2 class="eyebrow">Записи</h2>
       <span class="muted">${entries.length}</span></div>
       <div class="entries">${entries.length ? entries.map(item =>
-        `<a class="entry" data-entry-key="${esc(item.key)}" href="#codex/${encodeURIComponent(item.key)}"${item === record ? ' aria-current="true"' : ''}>
+        `<a class="entry" data-entry-key="${esc(item.key)}" href="${codexHref(item.key)}"${item === record ? ' aria-current="true"' : ''}>
           ${sprite(item, 'entry-sprite')}<span><strong>${esc(item.kind === 'secrets' ? secretLabel(item) : item.name)}</strong>
           <small>${item.kind === 'secrets' ? worlds[item.world] : esc(item.en !== item.name && item.en !== item.id ? item.en : categories[item.kind]?.[0])}</small></span>
         </a>`).join('') : '<p class="empty">По этим фильтрам записей нет.</p>'}</div></section>
@@ -4033,7 +4067,7 @@ function render() {
   const add = document.querySelector('#detail-add');
   add?.addEventListener('click', () => {
     const entry = screen.querySelector('.entry[aria-current]');
-    const target = key || (entry && decodeURIComponent(entry.hash.slice('#codex/'.length)));
+    const target = key || entry?.dataset.entryKey;
     if (target) toggleItem(target);
     render();
     document.querySelector('#detail-add')?.focus();
@@ -4145,7 +4179,7 @@ function openRecordInfo(key) {
 recordInfoContent.addEventListener('click', event => {
   const anchor = event.target.closest('a[href^="#"]');
   if (!anchor || event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-  const key = anchor.hash.startsWith('#codex/') ? decodeURIComponent(anchor.hash.slice(7)) : '';
+  const key = codexKeyFromHash(anchor.hash);
   if (key && matchesWorld(byKey.get(key))) {
     event.preventDefault();
     openRecordInfo(key);
@@ -4201,7 +4235,7 @@ window.addEventListener('hashchange', event => {
   if (route().page === 'review' && recordInfo.open) recordInfo.close();
   render();
   const current = route();
-  const [previousPage, previousKey] = new URL(event.oldURL).hash.slice(1).split('?')[0].split('/');
+  const { page: previousPage, key: previousKey } = route(new URL(event.oldURL).hash);
   if (matchMedia('(max-width: 670px)').matches || previousPage !== current.page) window.scrollTo(0, 0);
   if (previousPage === 'codex' && previousKey && current.page === 'codex' && !current.key && restoreCodexFocus()) return;
   const heading = current.key ? document.querySelector('#record-title') : document.querySelector('#workspace');
